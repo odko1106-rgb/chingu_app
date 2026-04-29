@@ -1,0 +1,24 @@
+/* src/index.css */
+:root {
+  --primary-color: #624BFF; /* Чиний дизайны нил ягаан */
+  --bg-color: #F5F7FB;      /* Дэвсгэр цайвар өнгө */
+  --sidebar-bg: #FFFFFF;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif; /* Цэвэрхэн харагдах фонт */
+  background-color: var(--bg-color);
+}
+
+.dashboard-container {
+  display: flex; /* Sidebar болон Content-ийг хажуу хажууд нь гаргана */
+  min-height: 100vh;
+}
+.custom-sidebar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.custom-sidebar::-webkit-scrollbar {
+    display: none;
+}

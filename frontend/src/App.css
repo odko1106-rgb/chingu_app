@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  font-family: 'Montserrat', 'Inter', -apple-system, sans-serif; /* Montserrat-ыг нэгдүгээрт тавина */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F8FAFC;
+  color: #1E293B;
+}
+
+/* Монгол үсэг заримдаа хэт наалдаж харагддаг тул үл ялиг зай нэмнэ */
+p, div, span, h1, h2, h3, h4 {
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+}

@@ -1,0 +1,59 @@
+/* 1. Хуанлиг дизайнтай нийцүүлэх */
+.custom-calendar {
+  width: 100% !important;
+  border: none !important;
+  /* Монгол үсэгт хамгийн тохиромжтой Montserrat эсвэл Inter фонт */
+  font-family: 'Montserrat', 'Inter', sans-serif; 
+  border-radius: 20px;
+  padding: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+/* Гаригуудын нэр (Да, Мя, Лх...) */
+.react-calendar__month-view__weekdays {
+  text-transform: capitalize; /* Эхний үсгийг томоор */
+  font-weight: 700;
+  color: #64748B;
+  font-size: 0.85em;
+  margin-bottom: 10px;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none; /* Доогуур зураасыг арилгах */
+}
+
+/* Өдрүүдийн тоог монгол фонтоор гоё харуулах */
+.react-calendar__tile {
+  font-weight: 500;
+  padding: 12px 10px !important;
+  font-size: 0.95em;
+}
+
+/* Сонгосон өдрийн өнгө */
+.react-calendar__tile--active {
+  background: #321D73 !important;
+  color: white !important;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* Өнөөдөр байгаа өдөр */
+.react-calendar__tile--now {
+  background: #F0E7FF !important;
+  border-radius: 12px;
+  color: #321D73;
+  font-weight: 700;
+}
+
+/* Хуанлийн дээд талын Сарын нэр (4-р сар 2026...) */
+.react-calendar__navigation button {
+  font-weight: 700;
+  color: #321D73;
+  font-size: 1.1em;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #F8FAFC;
+  border-radius: 10px;
+}
