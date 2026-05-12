@@ -1,20 +1,23 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const Sidebar = ({ isOpen, setIsOpen, user }) => {
   const location = useLocation();
+  // 2. Компонент дотор "зарлах"
+  const { t, i18n } = useTranslation();
 
   const menuItems = [
-    { name: 'Dashboard', path: '/', icon: '📊', show: !!user },
-    { name: 'AI Level Test', path: '/level-test', icon: '🎯', show: true },
-    { name: 'Writing Checker', path: '/ai-test', icon: '✍️', show: true },
-    { name: 'Courses', path: '/courses', icon: '📚', show: true },
-    { name: 'Flashcards', path: '/flashcards', icon: '🃏', show: true },
-    { name: 'YouTube Lessons', path: '/youtube', icon: '📺', show: true },
-    { name: 'Q&A', path: '/qna', icon: '🙋‍♂️', show: true },
-    { name: 'Leaderboard', path: '/leaderboard', icon: '🏆', show: true },
-    { name: 'History', path: '/history', icon: '📜', show: !!user },
-    { name: 'Settings', path: '/settings', icon: '⚙️', show: !!user },
+    { key: 'menu_dashboard', path: '/', icon: '📊', show: !!user },
+    { key: 'menu_level_test', path: '/level-test', icon: '🎯', show: true },
+    { key: 'menu_writing_check', path: '/ai-test', icon: '✍️', show: true },
+    { key: 'menu_courses', path: '/courses', icon: '📚', show: true },
+    { key: 'menu_flashcards', path: '/flashcards', icon: '🃏', show: true },
+    { key: 'menu_youtube', path: '/youtube', icon: '📺', show: true },
+    { key: 'menu_qna', path: '/qna', icon: '🙋‍♂️', show: true },
+    { key: 'menu_leaderboard', path: '/leaderboard', icon: '🏆', show: true },
+    { key: 'menu_history', path: '/history', icon: '📜', show: !!user },
+    { key: 'menu_settings', path: '/settings', icon: '⚙️', show: !!user },
   ];
 
   return (
@@ -51,7 +54,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
         opacity: isOpen ? 1 : 0.5,
         transition: '0.3s'
       }}>
-        🎓 {isOpen && <span>Chingu Korean</span>}
+        🎓 {isOpen && <span>{t("brand_name")}</span>}
       </div>
 
       {/* Цэсүүд - Хаалттай үед нуугдана */}
@@ -89,7 +92,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
               }}
             >
               <span style={{ fontSize: '18px' }}>{item.icon}</span>
-              {item.name}
+              {t(item.key)}
             </Link>
           )
         ))}
@@ -106,7 +109,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
           <p style={{ fontSize: '11px', marginBottom: '10px', color: '#B0A7FF' }}>
-            Upgrade Today
+            {t("upgrade_text")}
           </p>
           <button style={{
             background: '#FFD700',
@@ -119,7 +122,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
             color: '#321D73',
             fontSize: '12px'
           }}>
-            Upgrade to PRO
+            {t("upgrade_button")}
           </button>
         </div>
       )}

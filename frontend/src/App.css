@@ -1,14 +1,26 @@
-body {
+
+
+/* Google Fonts-оос Montserrat-ыг дуудаж оруулж ирэх (Хэрэв өмнө нь байгаагүй бол) */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+* {
   margin: 0;
-  font-family: 'Montserrat', 'Inter', -apple-system, sans-serif; /* Montserrat-ыг нэгдүгээрт тавина */
+  padding: 0;
+  box-sizing: border-box;
+  /* Бүх элементийг Montserrat фонтоор хүчээр бичнэ */
+  font-family: 'Arial', sans-serif !important;
+}
+
+body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #F8FAFC;
   color: #1E293B;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Монгол үсэг заримдаа хэт наалдаж харагддаг тул үл ялиг зай нэмнэ */
-p, div, span, h1, h2, h3, h4 {
+/* Бичвэрийн уншигдах байдлыг сайжруулах */
+p, div, span, h1, h2, h3, h4, a, button {
   letter-spacing: -0.01em;
   line-height: 1.5;
 }

@@ -2,94 +2,157 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { useLocation, useNavigate } from 'react-router-dom';
 // Flashcards.jsx-ийн хамгийн дээр байгаа импортыг ингэж өөрчил:
-import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore'; // 👈 Энд Timestamp-ийг нэмж өгнө
+import { collection, query, where, getDocs, doc, getDoc,setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './Dashboard.css'; // Хуанли болон нэмэлт стильд зориулав
+import { useTranslation } from 'react-i18next';
 
 const Dashboard = ({ user }) => {
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [stats, setStats] = useState({
     learnedCount: 0,
     reviewToday: 0,
-    streak: 5, // Үүнийг дараа нь логикоор бодож гаргаж болно
+    streak: 0,
   });
   const [todayTasks, setTodayTasks] = useState([]);
   const [date, setDate] = useState(new Date());
 
-  // 🔄 1. Firestore-оос бодит тоонуудыг татах
-  
-    useEffect(() => {
+useEffect(() => {
     const fetchDashboardData = async () => {
-    // 1. User бэлэн байгаа эсэхийг маш сайн шалгах
-    if (!user || !user.uid) {
-      console.log("🚧 Хэрэглэгч нэвтрээгүй эсвэл UID ирээгүй байна...");
-      return;
-    }
+      if (!user || !user.uid) return;
 
-    try {
-      console.log("🔍 Шүүж буй UID:", user.uid);
+      try {
+        // 1. Статистик татах
+        const qLearned = query(collection(db, "learnedWords"), where("userId", "==", user.uid));
+        const learnedSnap = await getDocs(qLearned);
+        
+        const now = new Date();
+        const qReview = query(collection(db, "learnedWords"), where("userId", "==", user.uid), where("nextReview", "<=", now));
+        const reviewSnap = await getDocs(qReview);
 
-      // 2. Нийт цээжилсэн үгсийг татах (Зөвхөн userId-аар шүүнэ)
-      const qLearned = query(
-        collection(db, "learnedWords"), 
-        where("userId", "==", user.uid)
-      );
-      
-      const learnedSnap = await getDocs(qLearned);
-      console.log("📊 Firestore-оос ирсэн нийт баримтын тоо:", learnedSnap.size);
+        // 2. STREAK ЗАСВАР (ЯГ ЭНЭ ХЭСГИЙГ СОЛИОРОЙ)
+        const userRef = doc(db, "users", user.uid);
+        let userSnap = await getDoc(userRef);
 
-      // 3. Өнөөдөр давтах үгс
-      const now = new Date();
-      const qReview = query(
-        collection(db, "learnedWords"), 
-        where("userId", "==", user.uid),
-        where("nextReview", "<=", now)
-      );
-      const reviewSnap = await getDocs(qReview);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            displayName: user.displayName || "",
+            email: user.email || "",
+            streakCount: 0,
+            bestStreak: 0,
+            lastActiveDate: null,
+            createdAt: Timestamp.now()
+          });
+          userSnap = await getDoc(userRef);
+        } else if (!userSnap.data().displayName) {
+          // ← Хуучин document-д displayName байхгүй бол нэмэх
+          await updateDoc(userRef, {
+            displayName: user.displayName || "",
+            email: user.email || "",
+          });
+        }
+        let finalStreak = 0;
 
-      // 4. State шинэчлэх
-      setStats(prev => ({
-        ...prev,
-        learnedCount: learnedSnap.size, // Энэ тоо шууд нэмэгдэх ёстой
-        reviewToday: reviewSnap.size
-      }));
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          finalStreak = userData.streakCount || 0;
+          const lastActiveDate = userData.lastActiveDate; // "YYYY-MM-DD"
+          
+          const today = new Date();
+          const todayStr = today.toLocaleDateString('en-CA');
+          
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toLocaleDateString('en-CA');
 
-      // Task-ийг шинэчлэх
-      if (reviewSnap.size > 0) {
-        setTodayTasks([{
-          id: 1,
-          title: `Давтах ёстой ${reviewSnap.size} үг байна`,
-          category: 'Spaced Repetition',
-          color: '#FFD700'
-        }]);
-      } else {
-        setTodayTasks([]);
+          // --- 🛠️ "Уян хатан" өнөөдөр шалгах (Сүүлийн 24 цаг доторх бүх идэвхийг харна) ---
+          const last24h = new Date(today.getTime() - (24 * 60 * 60 * 1000));
+          const qToday = query(
+            collection(db, "learnedWords"),
+            where("userId", "==", user.uid),
+            where("lastTested", ">=", Timestamp.fromDate(last24h))
+          );
+          const todaySnap = await getDocs(qToday);
+          
+          // ← ЭНД НЭМЭХ
+          console.log("=== STREAK DEBUG ===");
+          console.log("1. learnedWords count:", learnedSnap.size);
+          console.log("2. Sample doc fields:", learnedSnap.docs[0] ? Object.keys(learnedSnap.docs[0].data()) : "NO DOCS");
+          console.log("3. todaySnap size:", todaySnap.size);
+          console.log("4. lastActiveDate:", lastActiveDate);
+          console.log("5. todayStr:", todayStr);
+          console.log("6. yesterdayStr:", yesterdayStr);
+          console.log("7. streakCount:", userData.streakCount);
+          console.log("===================");
+
+
+          if (todaySnap.size > 0 && lastActiveDate !== todayStr) {
+            // Хэрэв сүүлийн 24 цагт үг цээжилсэн бол:
+            let newStreak = (lastActiveDate === yesterdayStr) ? finalStreak + 1 : 1;
+
+            await updateDoc(userRef, {
+              streakCount: newStreak,
+              lastActiveDate: todayStr,
+              bestStreak: Math.max(newStreak, userData.bestStreak || 0)
+            });
+            finalStreak = newStreak;
+          } else if (lastActiveDate !== todayStr && lastActiveDate !== yesterdayStr) {
+            // Хэрэв өнөөдөр ороогүй, өчигдөр ч ороогүй бол
+            finalStreak = 0;
+            if (userData.streakCount > 0) await updateDoc(userRef, { streakCount: 0 });
+          }
+        }
+
+        setStats({
+          learnedCount: learnedSnap.size,
+          reviewToday: reviewSnap.size,
+          streak: finalStreak,
+        });
+
+        // setStats(...) дуусаад доор нэм
+        const now2 = new Date();
+        const qTasks = query(
+          collection(db, "learnedWords"),
+          where("userId", "==", user.uid),
+          where("nextReview", "<=", now2)
+        );
+        const tasksSnap = await getDocs(qTasks);
+
+        const colors = ['#6C63FF', '#FF6584', '#43D9A2', '#FFB347', '#5BC0EB'];
+        const tasks = tasksSnap.docs.map((d, i) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            title: data.kr,        // ← Солонгос үг
+            category: data.mn,     // ← Монгол орчуулга
+            color: colors[i % colors.length],
+          };
+        });
+        setTodayTasks(tasks);
+
+      } catch (error) {
+        console.error("Streak Error:", error);
       }
-
-    } catch (error) {
-      console.error("❌ Dashboard Алдаа:", error);
-      // Хэрэв консол дээр "Index" гэсэн үгтэй урт алдаа гарвал тэр линк дээр заавал дарж индекс үүсгэнэ!
-    }
-  };
-
+    };
     fetchDashboardData();
-  }, [user, location.pathname]); // location.pathname өөрчлөгдөх бүрт (хуудас солигдоход) датаг дахин татна // location нэмснээр хуудас хооронд шилжихэд датаг дахин татна
-
+  }, [user, location.pathname, t]);
   return (
     <div className="dashboard-container" style={{ display: 'flex', gap: '25px', padding: '20px', flexWrap: 'wrap' }}>
       
-      {/* 1️⃣ ЗҮҮН ТАЛ: Үндсэн мэдээлэл (Stats & Tasks) */}
+      {/* 1️⃣ ЗҮҮН ТАЛ */}
       <div style={{ flex: '2', minWidth: '600px' }}>
         
         {/* Welcome Card */}
         <div style={welcomeCard}>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: '26px', marginBottom: '10px', fontWeight: 'bold' }}>
-              Өнөөдөр ч гэсэн өдрийг сайхан өнгөрүүлээрэй, {user?.displayName?.split(' ')[0] || 'Суралцагч'}! ✨
+              {t("dash_welcome", { name: user?.displayName?.split(' ')[0] || t("dash_learner") })}
             </h2>
             <p style={{ opacity: 0.9, fontSize: '16px' }}>
-              Та энэ долоо хоногт тууштай суралцаж байна. Өөртөө итгэлтэй байгаарай!
+              {t("dash_subtitle")}
             </p>
           </div>
           <div style={{ fontSize: '70px', marginLeft: '20px' }}>👩‍💻</div>
@@ -100,128 +163,115 @@ const Dashboard = ({ user }) => {
           <div style={statCard}>
             <div style={iconBox('#E8F1FF')}>🎓</div>
             <h3 style={{ margin: '15px 0 5px', fontSize: '24px', fontWeight: 'bold' }}>{stats.learnedCount}</h3>
-            <p style={{ fontSize: '14px', color: '#64748B' }}>Цээжилсэн үгс</p>
+            <p style={{ fontSize: '14px', color: '#64748B' }}>{t("dash_learned_words")}</p>
           </div>
           <div style={statCard}>
             <div style={iconBox('#FFF9E5')}>📝</div>
             <h3 style={{ margin: '15px 0 5px', fontSize: '24px', fontWeight: 'bold' }}>{stats.reviewToday}</h3>
-            <p style={{ fontSize: '14px', color: '#64748B' }}>Өнөөдөр давтах</p>
+            <p style={{ fontSize: '14px', color: '#64748B' }}>{t("dash_review_today")}</p>
           </div>
           <div style={statCard}>
             <div style={iconBox('#FFE8E8')}>🔥</div>
             <h3 style={{ margin: '15px 0 5px', fontSize: '24px', fontWeight: 'bold' }}>{stats.streak}</h3>
-            <p style={{ fontSize: '14px', color: '#64748B' }}>Өдрийн Streak</p>
+            <p style={{ fontSize: '14px', color: '#64748B' }}>{t("dash_daily_streak")}</p>
           </div>
         </div>
 
-        {/* Today Tasks Section */}
+        {/* Today Tasks */}
         <div style={sectionCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, color: '#321D73', fontWeight: 'bold' }}>Өнөөдрийн даалгавар</h3>
-            <span style={{ color: '#94A3B8', fontSize: '14px', cursor: 'pointer' }}>Бүгдийг харах</span>
+            <h3 style={{ margin: 0, color: '#321D73', fontWeight: 'bold' }}>{t("dash_today_tasks")}</h3>
+            <span style={{ color: '#94A3B8', fontSize: '14px', cursor: 'pointer' }}>{t("dash_view_all")}</span>
           </div>
 
           {todayTasks.length > 0 ? todayTasks.map(task => (
-            <div 
-                key={task.id} 
-                style={taskItem(task.color)}
-                // 👇 ЭНЭ МӨРИЙГ ИНГЭЖ СОЛИОРОЙ:
-                onClick={() => window.location.href = '/flashcards?mode=review'} 
-            >
+            <div key={task.id} style={taskItem(task.color)} onClick={() => window.location.href = '/flashcards?mode=review'}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: task.color }}></div>
-                <div>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: task.color }}></div>
+                  <div>
                     <div style={{ fontWeight: '600', color: '#1E293B' }}>{task.title}</div>
                     <div style={{ fontSize: '12px', color: '#64748B' }}>{task.category}</div>
-                </div>
+                  </div>
                 </div>
                 <div style={{ color: '#94A3B8' }}>→</div>
             </div>
-            )) : (
-            /* ... Tasks дууссан үед харагдах хэсэг ... */
+          )) : (
             <div style={{ textAlign: 'center', padding: '20px', color: '#94A3B8' }}>
                 <span style={{ fontSize: '30px' }}>🎉</span>
-                <p>Өнөөдөртөө бүх даалгавар дууссан байна!</p>
+                <p>{t("dash_no_tasks")}</p>
             </div>
-            )}
+          )}
         </div>
 
-        {/* Activity Chart Placeholder */}
+        {/* Activity Chart */}
         <div style={{ ...sectionCard, marginTop: '25px' }}>
-          <h3 style={{ marginBottom: '15px', color: '#321D73', fontWeight: 'bold' }}>Hours Activity</h3>
+          <h3 style={{ marginBottom: '15px', color: '#321D73', fontWeight: 'bold' }}>{t("dash_hours_activity")}</h3>
           <div style={{ height: '200px', background: '#F8FAFC', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
             [Энд суралцсан цагийн график харагдана]
           </div>
         </div>
       </div>
 
-      {/* 2️⃣ БАРУУН ТАЛ: Хуанли болон Мэдээлэл (Sidebar) */}
+      {/* 2️⃣ БАРУУН ТАЛ */}
       <div style={{ flex: '1', minWidth: '320px' }}>
         
-        {/* Calendar Card */}
+        {/* Calendar */}
         <div style={sectionCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, fontWeight: 'bold', color: '#321D73' }}>Хуанли</h3>
+            <h3 style={{ margin: 0, fontWeight: 'bold', color: '#321D73' }}>{t("dash_calendar")}</h3>
           </div>
           <Calendar 
-              onChange={setDate} 
-              value={date} 
-              className="custom-calendar"
-              
-              // 1. Гаригуудын нэрийг хүчээр Монгол болгох
-              formatShortWeekday={(locale, date) => {
-                const days = ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Шя'];
-                return days[date.getDay()];
-              }}
-
-              // 2. Сарын нэрийг хүчээр Монгол болгох (Жишээ: 2026 оны 4-р сар)
-              formatMonthYear={(locale, date) => {
-                const months = [
-                  '1-р сар', '2-р сар', '3-р сар', '4-р сар', '5-р сар', '6-р сар',
-                  '7-р сар', '8-р сар', '9-р сар', '10-р сар', '11-р сар', '12-р сар'
-                ];
+            onChange={setDate} 
+            value={date} 
+            className="custom-calendar"
+            locale={i18n.language === 'MN' ? 'mn-MN' : i18n.language === 'KR' ? 'ko-KR' : 'en-US'}
+            formatShortWeekday={(locale, date) => {
+              const daysMN = ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Шя'];
+              const daysEN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              const daysKR = ['일', '월', '화', '수', '목', '금', '토'];
+              if (i18n.language === 'MN') return daysMN[date.getDay()];
+              if (i18n.language === 'KR') return daysKR[date.getDay()];
+              return daysEN[date.getDay()];
+            }}
+            formatMonthYear={(locale, date) => {
+              if (i18n.language === 'MN') {
+                const months = ['1-р сар', '2-р сар', '3-р сар', '4-р сар', '5-р сар', '6-р сар', '7-р сар', '8-р сар', '9-р сар', '10-р сар', '11-р сар', '12-р сар'];
                 return `${date.getFullYear()} оны ${months[date.getMonth()]}`;
-              }}
-
-              // 3. Өдрийн тооны ард "ил" (1일, 2일) гэж гараад байвал үүнийг нэмээрэй
-              formatDay={(locale, date) => date.getDate()}
-            />
+              }
+              if (i18n.language === 'KR') return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+              return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            }}
+            formatDay={(locale, date) => date.getDate()}
+          />
         </div>
 
-        {/* Info & Upcoming Section */}
+        {/* Info & Tips */}
         <div style={{ ...sectionCard, marginTop: '25px' }}>
-          <h3 style={{ marginBottom: '20px', fontWeight: 'bold', color: '#321D73' }}>Мэдээлэл & Зөвлөгөө</h3>
-          
+          <h3 style={{ marginBottom: '20px', fontWeight: 'bold', color: '#321D73' }}>{t("dash_info_tips")}</h3>
           <div style={infoBox('#F0E7FF', '#321D73')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <span>💡</span>
-              <span style={{ fontWeight: 'bold' }}>Зөвлөгөө</span>
+              <span style={{ fontWeight: 'bold' }}>{t("dash_tip_title")}</span>
             </div>
-            <p style={{ fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
-              Үг цээжлэх хамгийн үр дүнтэй арга бол унтахынхаа өмнө нэг удаа гүйлгэж харах юм.
-            </p>
+            <p style={{ fontSize: '14px', lineHeight: '1.5', margin: 0 }}>{t("dash_tip_desc")}</p>
           </div>
-
           <div style={infoBox('#F0FFF4', '#2F855A')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <span>📢</span>
-              <span style={{ fontWeight: 'bold' }}>Мэдэгдэл</span>
+              <span style={{ fontWeight: 'bold' }}>{t("dash_notice_title")}</span>
             </div>
-            <p style={{ fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
-              Тун удахгүй AI суралцах хэсэг шинэчлэгдэх болно. Хүлээгээрэй!
-            </p>
+            <p style={{ fontSize: '14px', lineHeight: '1.5', margin: 0 }}>{t("dash_notice_desc")}</p>
           </div>
         </div>
 
-        {/* Upgrade Pro Card (Optional - Зурган дээр байсан) */}
+        {/* Upgrade Pro */}
         <div style={upgradeCard}>
           <div style={{ fontSize: '40px', marginBottom: '10px' }}>🚀</div>
-          <h4 style={{ margin: '0 0 10px 0' }}>Upgrade to Pro</h4>
-          <p style={{ fontSize: '12px', marginBottom: '15px' }}>Бүх боломжийг хязгааргүй ашиглахыг хүсвэл Pro болоорой.</p>
-          <button style={upgradeBtn}>Дэлгэрэнгүй</button>
+          <h4 style={{ margin: '0 0 10px 0' }}>{t("dash_upgrade_pro")}</h4>
+          <p style={{ fontSize: '12px', marginBottom: '15px' }}>{t("dash_upgrade_desc")}</p>
+          <button style={upgradeBtn}>{t("dash_details")}</button>
         </div>
       </div>
-
     </div>
   );
 };
