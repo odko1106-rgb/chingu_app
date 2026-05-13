@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, signInWithGoogle } from '../firebase';
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, getRedirectResult } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -10,6 +10,30 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        const userRef = doc(db, "users", result.user.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            displayName: result.user.displayName,
+            email: result.user.email,
+            photoURL: result.user.photoURL,
+            streakCount: 0,
+            bestStreak: 0,
+            lastActiveDate: null,
+            createdAt: serverTimestamp()
+          });
+        }
+        navigate('/');
+      }
+    }).catch((err) => {
+      console.error(err);
+      setError("Google-ээр нэвтрэхэд алдаа гарлаа.");
+    });
+  }, []);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -23,31 +47,13 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-  setError('');
-  try {
-    const result = await signInWithGoogle();
-    if (result.user) {
-      const userRef = doc(db, "users", result.user.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          displayName: result.user.displayName,
-          email: result.user.email,
-          photoURL: result.user.photoURL,
-          streakCount: 0,
-          bestStreak: 0,
-          lastActiveDate: null,
-          createdAt: serverTimestamp()
-        });
-      }
-      navigate('/');
-    }
-  } catch (err) {
-    console.error(err);
-    setError("Google-ээр нэвтрэхэд алдаа гарлаа.");
-  }
-};
+  const handleGoogleLogin = () => {
+    setError('');
+    signInWithGoogle().catch((err) => {
+      console.error(err);
+      setError("Google-ээр нэвтрэхэд алдаа гарлаа.");
+    });
+  };
 
   return (
     <div style={containerStyle}>

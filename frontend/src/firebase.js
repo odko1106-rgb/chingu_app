@@ -6,6 +6,7 @@ import {
   signOut 
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { signInWithRedirect } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDxO5BiNUMpl-k8fyyeJDHbLUYyKb51AgA",
