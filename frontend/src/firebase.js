@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDxO5BiNUMpl-k8fyyeJDHbLUYyKb51AgA",
-  authDomain: "learnkorean-b682d.firebaseapp.com",
+  authDomain: "chingu-app-sigma.vercel.app", // ← өөрчил
   projectId: "learnkorean-b682d",
   storageBucket: "learnkorean-b682d.firebasestorage.app",
   messagingSenderId: "83508220109",
